@@ -1,0 +1,407 @@
+---
+title: "Geospatial Workshop Day 2 - shapefiles"
+author: "Camila Vargas"
+date: "4/8/2022"
+output: html_document
+---
+## Set up
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(sf)
+library(ggplot2)
+library(tidyverse)
+```
+
+# Open and Plot Shapefiles
+
+## Load data
+```{r}
+aoi_boundary_HARV <- st_read(
+  "data/NEON-DS-Site-Layout-Files/HARV/HarClip_UTMZ18.shp")
+```
+
+## Look into metadata
+```{r}
+
+## geometry of my data
+st_geometry_type(aoi_boundary_HARV)
+
+## What is the CRS
+st_crs(aoi_boundary_HARV)
+
+## bbox
+st_bbox(aoi_boundary_HARV)
+
+## general info
+aoi_boundary_HARV
+
+```
+
+## Plotting vector data
+With dhapefiles we do not need to convert data into a DF
+
+```{r}
+aoi_boundary_HARV %>% 
+ggplot()+
+  geom_sf(size = 3,
+          color = "black",
+          fill = "cyan1")+
+  coord_sf()
+
+```
+We do not use aes() because we're not calling to particular columns dor our colors or fill. We want the entire object to be plotted
+
+```{r}
+lines_HARV <- st_read("data/NEON-DS-Site-Layout-Files/HARV/HARV_roads.shp")
+
+point_HARV <- 
+st_read("data/NEON-DS-Site-Layout-Files/HARV/HARVtower_UTM18N.shp")
+
+class(lines_HARV)
+class(point_HARV)
+
+
+st_crs(lines_HARV)
+
+st_bbox(point_HARV)
+st_bbox(lines_HARV)
+
+```
+
+# Explore and Plot by Vector Layer Attributes
+
+Explore the attributes associated with the point_HARV and aoi_boundary_HARV spatial objects.
+
+- How many attributes does each have?
+
+Number of attributes
+```{r}
+ncol(point_HARV) # 15 attributes
+ncol(aoi_boundary_HARV) # 2 atributs
+
+```
+
+
+- Who owns the site in the point_HARV data object?
+```{r}
+point_HARV$Ownership
+```
+
+- Which of the following is NOT an attribute of the point_HARV data object?
+
+A) Latitude 
+B) County 
+C) **Country**
+
+```{r}
+colnames(point_HARV)
+
+## Country is not an attribute
+```
+
+
+## Explore Values within One Attribute
+
+```{r}
+lines_HARV$TYPE
+unique(lines_HARV$NOTES)
+```
+
+### Subset Features
+```{r}
+footpath_HARV <- lines_HARV %>% 
+  filter(TYPE == "footpath")
+
+nrow(footpath_HARV)
+```
+
+Plot!
+```{r}
+footpath_HARV %>% 
+  ggplot()+
+  # factor tells ggplot to identify numbers as factors and not as continous variables!!
+  geom_sf(aes(color = factor(OBJECTID)))+
+  ggtitle("NEON Harvard Forest Site",
+          subtitle = "Footpath")
+```
+
+### Challenge
+Subset out all stone wall features from the lines layer and plot it. For each plot, color each feature using a unique color.
+
+```{r}
+# Subset
+stonewall_HARV <- lines_HARV %>% 
+  filter(TYPE == "stone wall")
+
+nrow(stonewall_HARV)
+
+# Plot
+stonewall_HARV %>% 
+  ggplot()+
+  # factor tells ggplot to identify numbers as factors and not as continous variables!!
+  geom_sf(aes(color = factor(OBJECTID)))+
+  ggtitle("NEON Harvard Forest Site",
+          subtitle = "Stone Wall")
+
+# Customize Plot
+unique(lines_HARV$TYPE)
+
+## 4 colors becasue there are 4 types
+road_colors <- c("blue", "green", "navy", "purple")
+
+lines_HARV %>% 
+  ggplot()+
+  geom_sf(aes(color = TYPE))+
+  scale_color_manual(values = road_colors)+
+  labs(color = "Road Type")+
+  ggtitle("NEON Harvard Forest Field Site", subtitle = "Roads & Trails") + 
+  coord_sf()
+
+
+```
+
+### Challenge
+Create a plot that emphasizes only roads where bicycles and horses are allowed. To emphasize this, make the lines where bicycles are not allowed THINNER than the roads where bicycles are allowed. NOTE: this attribute information is located in the lines_HARV$BicyclesHo attribute.
+
+Be sure to add a title and legend to your map. You might consider a color palette that has all bike/horse-friendly roads displayed in a bright color. All other lines can be black.
+
+**See lecture**
+
+```{r}
+
+```
+
+
+# Plot Multiple Shapefiles
+
+## Plotting Multiple Shapefiles
+
+```{r}
+ggplot()+
+  geom_sf(data = aoi_boundary_HARV,
+          fill = "gray",
+          color = "gray")+
+  geom_sf(data = lines_HARV,
+          aes(color = TYPE),
+          size = 1)+
+  geom_sf(data = point_HARV,
+          aes(fill = Sub_Type),
+          shape = 15)+ # 15 = a square
+  ggtitle("NEON Harvard Forest Field Site")+
+  coord_sf()+
+  scale_color_manual(values = road_colors,
+                     name = "Line Type")+
+  scale_fill_manual(values = "black",
+                    name = "Tower Location")
+```
+
+**Tip**
+?pch --> gives you the number of all shapes in ggplot!
+
+### Challenge: Plot Polygon by Attribute
+
+1. Using the NEON-DS-Site-Layout-Files/HARV/PlotLocations_HARV.shp shapefile, create a map of study plot locations, with each point colored by the soil type (soilTypeOr). How many different soil types are there at this particular field site? Overlay this layer on top of the lines_HARV layer (the roads). Create a custom legend that applies line symbols to lines and point symbols to the points.
+
+2. Modify the plot above. Tell R to plot each point, using a different symbol of shape value.
+
+```{r}
+plot_location <- read_sf("data/NEON-DS-Site-Layout-Files/HARV/PlotLocations_HARV.shp")
+
+plot_location
+
+colnames(plot_location)
+unique(plot_location$soilTypeOr)
+
+## Two different type of soils
+
+ggplot()+
+  geom_sf(data = aoi_boundary_HARV,
+          fill = "gray",
+          color = "gray")+
+  geom_sf(data = lines_HARV,
+          aes(color = TYPE),
+          size = 1)+
+  geom_sf(data = point_HARV,
+          aes(fill = Sub_Type),
+          shape = 15)+ # 15 = a square
+  geom_sf(data = plot_location,
+          aes(shape = soilTypeOr))+
+  ggtitle("NEON Harvard Forest Field Site")+
+  coord_sf()+
+  scale_color_manual(values = road_colors,
+                     name = "Line Type")+
+  scale_fill_manual(values = "black",
+                    name = "Tower Location")+
+  scale_shape_manual(values = c(4, 6),
+                     name = " Soil Type")
+
+```
+
+
+### Challenge: Plot Raster & Vector Data Together
+You can plot vector data layered on top of raster data using the + to add a layer in ggplot. Create a plot that uses the NEON AOI Canopy Height Model data/NEON-DS-Airborne-Remote-Sensing/HARV/CHM/HARV_chmCrop.tif as a base layer. On top of the CHM, please add:
+- The study site AOI.
+- Roads.
+- The tower location.
+
+Be sure to give your plot a meaningful title.
+
+
+```{r}
+## Read raster
+chm_raster <- raster("data/NEON-DS-Airborne-Remote-Sensing/HARV/CHM/HARV_chmCrop.tif")
+
+chm_df <- as.data.frame(chm_raster, xy = TRUE)
+
+## layered plot
+
+ggplot()+
+  geom_raster(data = chm_df,
+              aes(x = x, y = y,
+                  fill = HARV_chmCrop))+
+  geom_sf(data = aoi_boundary_HARV,
+          fill = "gray",
+          color = "gray")+
+  geom_sf(data = lines_HARV,
+          size = 1)+
+  geom_sf(data = point_HARV,
+          shape = 15)+ # 15 = a square
+  geom_sf(data = plot_location,
+          aes(shape = soilTypeOr))+
+  ggtitle("NEON Harvard Forest Field Site")+
+  coord_sf()+
+  scale_shape_manual(values = c(4, 6),
+                     name = " Soil Type")+
+  scale_fill_viridis_c()
+
+bbox(chm_raster)
+bbox(lines_HARV)
+```
+
+# Handling Spatial Projection & CRS
+
+```{r}
+state_boundary_US <- st_read("data/NEON-DS-Site-Layout-Files/US-Boundary-Layers/US-State-Boundaries-Census-2014.shp")
+```
+
+
+## Plot state boundaries
+```{r}
+state_boundary_US %>% 
+  ggplot()+
+  geom_sf()+
+  ggtitle("Map of Contiguous US Boundaries")+
+  coord_sf()
+```
+
+What is the CRS of point_HARV?
+```{r}
+st_crs(point_HARV) # Coordinate Reference System:User input: WGS 84 / UTM zone 18N 
+
+st_crs(state_boundary_US) # Coordinate Reference System:User input: WGS 84 
+
+st_bbox(point_HARV)
+st_bbox(state_boundary_US)
+
+## Very different numbers!
+```
+
+Let's try plot them together and see what happens
+
+```{r}
+ggplot()+
+  geom_sf(data = state_boundary_US, color = "gray40") +
+  geom_sf(data = point_HARV, shape = 19, color = "purple") +
+  ggtitle("Map of Contiguous US State Boundaries") +
+  coord_sf()
+
+```
+
+ggplot transforms sf and adjust the CRS on its own!!!
+
+### Challenge:Plot Multiple Layers of Spatial Data
+
+Create a map of the North Eastern United States as follows:
+
+1. Import and plot Boundary-US-State-NEast.shp. Adjust line width as necessary.
+2. Layer the Fisher Tower (in the NEON Harvard Forest site) point location point_HARV onto the plot.
+3. Add a title.
+4. Add a legend that shows both the state boundary (as a line) and the Tower location point.
+
+```{r}
+
+# Import
+NE_boundary <- st_read("data/NEON-DS-Site-Layout-Files/US-Boundary-Layers/Boundary-US-State-NEast.shp")
+
+# Plot - IS NOT WORKING!
+ggplot()+
+  geom_sf(data = NE_boundary,
+          aes(color = "color"), show.legend = "line")+
+  scale_color_manual(name = "",
+                     labels = "State Boundary", 
+                     values = c("color" = "gray18"))+
+  geom_sf(data = data = point_HARV,
+          aes(shape = "shape"),
+          color = "purple")+
+  scale_shape_manual(name = "",
+                     labels = "Fisher Tower",
+                     values = c("shape" = 19))+
+  ggtitle("Fisher Tower Location")+
+  coord_sf()
+
+```
+
+
+# Convert from .csv to a Shapefile
+
+Read csv data
+```{r}
+plot_location_HARV <- read_csv("data/NEON-DS-Site-Layout-Files/HARV/HARV_PlotLocations.csv")
+
+str(plot_location_HARV)
+
+head(plot_location_HARV)
+
+```
+
+Hopefully, data in csv files contain some metadata to know more about the CRS and necessary information
+
+Storing the CRS information into an object
+```{r}
+utm18nCRS <- st_crs(point_HARV)
+class(utm18nCRS) # class crs
+
+```
+
+Convert the csv into sf object
+
+```{r}
+plot_location_HARV_sp <- st_as_sf(plot_location_HARV,
+                                  coords = c("easting", "northing"),
+                                  crs = utm18nCRS)
+
+class(plot_location_HARV_sp)
+
+```
+
+Plot the new converted sf
+
+```{r}
+ggplot()+
+  geom_sf(data = plot_location_HARV_sp)+
+  geom_sf(data = point_HARV, color = "purple")+
+  ggtitle("Map Plot Locations")
+  
+```
+
+Save as a shapefile!
+
+```{r}
+st_write(plot_location_HARV_sp, 
+         "data/PlotLocation_HARV.shp",
+         driver = "ESRI Shapefile")
+```
+
+
+
